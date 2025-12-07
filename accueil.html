@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="utf-8"/>
+        <link rel="stylesheet" href="public/css/GuessTheFlag.css">
+        <title>Guess The flag</title>
+    </head>
+    <body>
+        <img src="public/image/globe.png" width="50" height="50"/>
+        <div class="menu">
+            <div class="dots" onclick="toggleMenu()">
+                <span></span><span></span><span></span>
+            </div>
+            <div class="dropdown" id="dropdown">
+                <ul>
+                    <li><a href="parametre.html">paramètres</a></li>
+                    <li><a href="connexion.html">connexion</a></li>
+                </ul>
+            </div>
+        </div>
+        <h1 class="titre">Guess The Flag</h1>
+        <div class="trad">Devinez Le Drapeau</div>
+        <div class="container">
+            <a class="bouton" href="jeu.html">Démarer le QUIZ</a>
+            <a class="bouton" href="apprentissage.html">Apprendre</a>
+            <a class="bouton" href="competition.html">Mode Compétition</a>
+        </div>
+        <script>
+            function toggleMenu() {
+                const menu = document.getElementById("dropdown");
+                menu.style.display = (menu.style.display === "block") ? "none" : "block";
+            }
+        </script>
+    </body>
+</html>

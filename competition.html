@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="utf-8"/>
+        <link rel="stylesheet" href="public/css/GuessTheFlag.css">
+        <title>Guess The Flag</title>
+        <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+    </head>
+    <body>
+        <div class="container">
+            <a class="bouton_retour" href="accueil.html">Retourner à l'accueil</a>
+        </div>
+        <table>
+            <caption>
+                Meilleurs Joueurs
+            </caption>
+            <thead>
+                <tr>
+                    <th scope="col">Pseudo</th>
+                    <th scope="col">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th scope="row">Pseudo</th>
+                    <th scope="row">Score</th>
+                </tr>
+            </tbody>
+        </table>
+        <div id="rules">
+            <h2>Règles du Mode Compétition</h2>
+            <p>Dans ce mode, vous affrontez d'autres joueurs pour obtenir le meilleur score possible en un temps limité. Chaque bonne réponse vous rapporte des points. À la fin du temps imparti, les scores sont comparés et un classement est établi. Préparez-vous à relever le défi et à grimper dans le classement des meilleurs joueurs!</p>
+        </div>
+        <script type="module">
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+            import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+            // ⚠️ Remplace par ta vraie config
+            const firebaseConfig = {
+                apiKey: "api_key",
+                authDomain: "auth_domain",
+                projectId: "project_id",
+                storageBucket: "storage_bucket",
+                messagingSenderId: "messaging_sender_id",
+                appId: "app_id"
+            };
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            async function afficherClassement() {
+                const tableau = document.querySelector("tbody");
+                tableau.innerHTML = ""; // vide le tableau
+                const q = query(collection(db, "scores"), orderBy("score", "desc"));
+                const res = await getDocs(q);
+                res.forEach(doc => {
+                    const joueur = doc.data();
+                    const ligne = `
+                        <tr>
+                            <td>${joueur.pseudo}</td>
+                            <td>${joueur.score}</td>
+                        </tr>
+                    `;
+                    tableau.innerHTML += ligne;
+                });
+            }
+            afficherClassement();
+        </script>
+    </body>
+</html>
