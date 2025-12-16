@@ -2,14 +2,17 @@
 <html lang="fr">
     <head>
         <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <link rel="stylesheet" href="public/css/GuessTheFlag.css">
         <title>Guess The flag</title>
     </head>
     <body>
         <img src="public/image/globe.png" width="60" height="50"/>
         <div class="menu">
-            <div class="dots" onclick="toggleMenu()">
-                <span></span><span></span><span></span>
+            <div class="gear-icon" onclick="toggleMenu()">
+                <svg width="35" height="35" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .11-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.007 7.007 0 0 0-1.62-.94l-.36-2.54A.5.5 0 0 0 14.3 2h-4a.5.5 0 0 0-.49.42l-.36 2.54c-.59.23-1.14.54-1.63.94l-2.39-.96a.5.5 0 0 0-.61.22L3.9 8.84a.5.5 0 0 0 .11.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L4 14.52a.5.5 0 0 0-.11.64l1.92 3.32c.14.24.44.34.7.22l2.39-.96c.49.4 1.04.72 1.63.94l.36 2.54c.04.26.26.42.49.42h4c.23 0 .45-.16.49-.42l.36-2.54c.59-.23 1.14-.54 1.63-.94l2.39.96c.26.11.56.02.7-.22l1.92-3.32a.5.5 0 0 0-.11-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/>
+                </svg>
             </div>
             <div class="dropdown" id="dropdown">
                 <ul>
@@ -20,16 +23,88 @@
         </div>
         <h1 class="titre">Guess The Flag</h1>
         <div class="trad">Devinez Le Drapeau</div>
+        <section id="high-score-section">
+
+            <div class="scores-grid-container">
+                <div class="score-group">
+                    <h2 class="score-table-titre">Score - Quiz</h2>
+                    <table id="high-score-quiz-table">
+                        <thead>
+                            <tr>
+                                <th>Top Score</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="score-group">
+                    <h2 class="score-table-titre">Score - Contre-la-Montre</h2>
+                    <table id="high-score-clm-table">
+                        <thead>
+                            <tr>
+                                <th>Top Score</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
         <div class="container">
-            <a class="bouton" href="jeu.html">Démarer le QUIZ</a>
+            <a class="bouton" href="jeu.html">QUIZ</a>
+            <a class="bouton" href="contre-la-montre.html">Contre-la-Montre</a>
             <a class="bouton" href="apprentissage.html">Apprendre</a>
-            <a class="bouton" href="competition.html">Mode Compétition</a>
+            <a class="bouton" href="competition.html">Compétition</a>
         </div>
         <script>
             function toggleMenu() {
                 const menu = document.getElementById("dropdown");
-                menu.style.display = (menu.style.display === "block") ? "none" : "block";
+                menu.classList.toggle("show");
             }
+            document.addEventListener("click", function(event) {
+                const dropdown = document.getElementById("dropdown");
+                const menuIcon = document.querySelector(".gear-icon");
+                if (!dropdown.contains(event.target) && !menuIcon.contains(event.target)) {
+                    dropdown.classList.remove("show");
+                }
+            });
+
+            function displayScoresForMode(storageKey, tableId) {
+                const historyTableBody = document.querySelector(`#${tableId} tbody`);
+                const history = JSON.parse(localStorage.getItem(storageKey)) || [];
+                historyTableBody.innerHTML = ""; // Clear existing rows
+
+                if (history.length === 0) {
+                    historyTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="2">Aucun score enregistré.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                history.forEach((entry, index) => {
+                    const row = historyTableBody.insertRow();
+
+                    const rankCell = row.insertCell();
+                    rankCell.textContent = index + 1;
+
+                    const scoreCell = row.insertCell();
+                    scoreCell.textContent = entry.score;
+
+                })
+            }
+
+            function displayAllHighScores(){
+
+                displayScoresForMode("guessTheFlagScoreHistory", "high-score-quiz-table");
+                displayScoresForMode("guessTheFlagScoreHistoryContreLaMontre", "high-score-clm-table");
+            };
+            document.addEventListener("DOMContentLoaded", displayAllHighScores);
         </script>
     </body>
 </html>

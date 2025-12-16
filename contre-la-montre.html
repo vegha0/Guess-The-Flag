@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="utf-8"/>
+        <link rel="stylesheet" href="public/css/GuessTheFlag.css">
+        <title>Guess The Flag</title>
+    </head>
+    <body>
+        <img src="public/image/globe.png" width="60" height="50"/>
+        
+        <div class="container">
+            <a class="bouton_retour" href="accueil.html">Retour à l'accueil</a> 
+        </div>
+        
+        <div id="rules">
+            <h2>Mode Contre-la-Montre</h2>
+            <p>Dans ce mode, vous devez **saisir le nom exact** du pays pour gagner. Attention, le temps est limité pour chaque drapeau, et une seule erreur met fin à la partie ! Testez votre rapidité de saisie et votre précision.</p>
+        </div>
+
+        <div id="score-container">
+            <p id="high-score-comp">Meilleur Score Contre-la-Montre : 0</p>
+            <p id="current-score">Score Actuel : 0</p>
+        </div>
+        
+        <p id="timer-display">Temps restant : 0</p>
+
+        <div id="quiz-content" class="container">
+            <div id="flag-display"></div>
+            
+            <div id="input-container"></div>
+            
+            <div id="feedback-message"></div>
+        </div>
+
+        <script>
+            // --- CONSTANTES ET VARIABLES D'ÉTAT ---
+            // Liste des codes pays (vous devrez la compléter avec toute la liste)
+            const countryCodes = [
+                "af","al","dz","ad","ao","ar","am","au","at","az",
+                "bs","bh","bd","bb","by","be","bz","bj","bt","bo",
+                "ba","bw","br","bn","bg","bf","bi","cv","kh","cm",
+                "ca","cf","td","cl","cn","co","km","cd","cg","cr",
+                "hr","cu","cy","cz","dk","dj","dm","do","ec","eg",
+                "sv","gq","er","ee","sz","et","fj","fi","fr","ga",
+                "gm","ge","de","gh","gr","gd","gt","gn","gw","gy",
+                "ht","hn","hu","is","in","id","ir","iq","ie","il",
+                "it","jm","jp","jo","kz","ke","ki","kw","kg","la",
+                "lv","lb","ls","lr","ly","lt","lu","mg","mw","my",
+                "mv","ml","mt","mh","mr","mu","mx","fm","md","mc",
+                "mn","me","ma","mz","mm","na","nr","np","nl","nz",
+                "ni","ne","ng","no","om","pk","pw","pa","pg","py",
+                "pe","ph","pl","pt","qa","ro","ru","rw","kn","lc",
+                "vc","ws","sm","st","sa","sn","rs","sc","sl","sg",
+                "sk","si","sb","so","za","kr","es","lk","sd","sr",
+                "se","ch","sy","tw","tj","tz","th","tl","tg","to",
+                "tt","tn","tr","tm","tv","ug","ua","ae","gb","us",
+                "uy","uz","vu","va","ve","vn","ye","zm","zw"
+            ];
+
+            const flagDisplay = document.getElementById("flag-display");
+            const currentScoreDisplay = document.getElementById("current-score");
+            const highScoreDisplay = document.getElementById("high-score-comp");
+            const timerDisplay = document.getElementById("timer-display");
+            const inputContainer = document.getElementById("input-container");
+            const feedbackMessage = document.getElementById("feedback-message");
+
+            let currentScore = 0;
+            let highScore = parseInt(localStorage.getItem("guessTheFlagHighScoreContreLaMontre")) || 0; 
+            let currentCountryCode = "";
+            let questionTimer = null;
+            const TIME_PER_QUESTION = 15; // secondes
+            let isGameOver = false;
+
+            // --- FONCTIONS UTILITAIRES ---
+
+            function countryNameFromCode(code) {
+                return new Intl.DisplayNames(['fr'], {type: 'region'}).of(code.toUpperCase());
+            }
+
+            /**
+             * Nettoie une chaîne de texte pour la comparaison (supprime accents, casse, et espaces multiples).
+             */
+            function normalizeText(text) {
+                return text.toLowerCase()
+                           .normalize("NFD") 
+                           .replace(/[\u0300-\u036f]/g, "") 
+                           .replace(/\s+/g, ' ') // Remplace les espaces multiples par un seul
+                           .trim();
+            }
+
+            function updateScoreDisplay(){
+                currentScoreDisplay.textContent = `Score Actuel: ${currentScore}`;
+                
+                if (currentScore > highScore) {
+                    highScore = currentScore;
+                    // Sauvegarde immédiate du nouveau meilleur score
+                    localStorage.setItem("guessTheFlagHighScoreContreLaMontre", highScore); 
+                }
+                highScoreDisplay.textContent = `Meilleur Score Contre-la-Montre: ${highScore}`;
+            }
+
+            function saveFinalScoreToHistory(score) {
+                const savedHighScore = localStorage.getItem("guessTheFlagHighScoreContreLaMontre");
+                if (savedHighScore || score > parseInt(savedHighScore, 10)) {
+                    localStorage.setItem("guessTheFlagHighScoreContreLaMontre", score);
+                    highScore = score;
+                }
+                let history = JSON.parse(localStorage.getItem("guessTheFlagScoreHistoryContreLaMontre")) || [];
+                
+                history.push({score: score});
+                history.sort((a, b) => b.score - a.score);
+                history = history.slice(0, 10);
+                localStorage.setItem("guessTheFlagScoreHistoryContreLaMontre", JSON.stringify(history));
+            }
+
+            // --- F<|fim_middle|>ONCTIONS DE LOGIQUE DE JEU ---
+
+            function startQuestionTimer(duration) {
+                clearInterval(questionTimer);
+                let timeLeft = duration;
+                timerDisplay.textContent = `Temps restant : ${timeLeft}s`;
+
+                questionTimer = setInterval(() => {
+                    timeLeft--;
+                    timerDisplay.textContent = `Temps restant : ${timeLeft}s`;
+
+                    if (timeLeft <= 0) {
+                        clearInterval(questionTimer);
+                        feedbackMessage.innerHTML = `<span style="color: #F44336; font-weight: bold;">Temps écoulé ! La réponse était ${countryNameFromCode(currentCountryCode)}.</span>`;
+                        endGame();
+                    }
+                }, 1000);
+            }
+
+            function handleSubmission() {
+                if (isGameOver) return;
+                
+                const inputField = document.getElementById('country-input');
+                const submitButton = document.getElementById('submit-button');
+                const userAnswer = inputField.value;
+                
+                const targetName = countryNameFromCode(currentCountryCode);
+                const normalizedTarget = normalizeText(targetName);
+                const normalizedUser = normalizeText(userAnswer);
+
+                clearInterval(questionTimer);
+                submitButton.disabled = true;
+                inputField.disabled = true;
+                
+                let isCorrect = (normalizedUser === normalizedTarget);
+
+                if (isCorrect) {
+                    currentScore += 100; 
+                    feedbackMessage.innerHTML = `<span style="color: #4CAF50; font-weight: bold;">Correct ! +100 points.</span>`;
+                    updateScoreDisplay();
+                    setTimeout(newQuestion, 1000);
+                } else {
+                    feedbackMessage.innerHTML = `<span style="color: #F44336; font-weight: bold;">Faux. La réponse était ${targetName}.</span>`;
+                    setTimeout(endGame, 1500);
+                }
+            }
+
+            function getMatchingCountries(input){
+                if (input.length <2) return [];
+                const normalizedInput = normalizeText(input);
+                const allCountryNames = countryCodes.map(code => countryNameFromCode(code));
+                return countryCodes
+                    .map(code => countryNameFromCode(code))
+                    .filter(name => normalizeText(name).includes(normalizedInput))
+                    .slice(0, 8); // Limite à 8 suggestions
+            }
+
+            function displaySuggestions(matches, inputField){
+                const list = document.getElementById('suggestions-list');
+                const userInput = inputField.value;
+
+                list.innerHTML = "";
+
+                if (matches.length === 0 || userInput.length < 2){
+                    list.style.display = "none";
+                    return;
+                }
+
+
+
+                matches.forEach(name => {
+                    const item = document.createElement('div');
+                    item.textContent = name;
+                    item.classList.add('suggestion-item');
+
+                    item.onclick = () => {
+                        inputField.value = name;
+                        list.style.display = "none";
+                        handleSubmission();
+                    };
+                    
+                    list.appendChild(item);
+                });
+                list.style.display = "block";
+            }
+
+            function setupInputListeners(){
+                const inputField = document.getElementById('country-input');
+
+                // 1. Ecouter les changements pour les suggestions
+                inputField.addEventListener('input', function(){
+                    const matches = getMatchingCountries(inputField.value);
+                    displaySuggestions(matches, inputField);
+                });
+                // 2. Gérer la soumission par la touche 'Entrée'
+                inputField.addEventListener("keypress", function(e){
+                    if (e.key === 'Enter' && inputField.value.trim() !== "") {
+                        handleSubmission();
+                    }
+                });
+                // 3. Cacher les suggestions si clic en dehors
+                document.addEventListener("click", function(e) {
+                    const list = document.getElementById('suggestions-list');
+                    if (list && !list.contains(e.target) && e.target !== inputField) {
+                        list.style.display = "none";
+                    }
+                });
+                inputField.focus();
+
+                // Démarrer le chronomètre
+                startQuestionTimer(TIME_PER_QUESTION);
+            }
+
+            function newQuestion() {
+                if (isGameOver) return;
+
+                feedbackMessage.textContent = "";
+                
+                // 1. Sélectionner le drapeau cible
+                currentCountryCode = countryCodes[Math.floor(Math.random() * countryCodes.length)];
+
+                // 2. Afficher le drapeau
+                flagDisplay.innerHTML = `
+                    <img class="flag" 
+                        src="https://flagcdn.com/w320/${currentCountryCode}.png" 
+                        alt="Drapeau à deviner" style="width: 250px;">
+                `;
+
+                // 3. Afficher le champ de saisie
+                inputContainer.innerHTML = `
+                    <div style="position: relative; width: 100%; max-width: 300px; margin: 0;">
+                        <input type="text" id="country-input" placeholder="Entrez le nom du pays" style="padding: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100%; max-width: 300px; margin-bottom: 10px; box-sizing: border-box; color: black; background: white;">
+                        <div id="suggestions-list" 
+                             style="position: absolute; width: 100%; max-width: 300px; overflow-y: auto; z-index: 10; background-color: white; border: 1px solid #cc; border-top: none; border-radius: 0 0 5px 5px;">
+                        </div>
+                    </div>
+                    <button id="submit-button" class="bouton" style="margin-top: 0; width: 100%;" onclick="handleSubmission()">Valider</button>
+                `;
+                setupInputListeners();
+            }
+
+            function endGame() {
+                isGameOver = true;
+                clearInterval(questionTimer);
+                flagDisplay.innerHTML = `<h2 class="titre">Jeu Terminé!</h2>`;
+                inputContainer.innerHTML = `<p style="font-size: 1.5em; color: white;">Votre Score Final: ${currentScore}</p>`;
+                saveFinalScoreToHistory(currentScore);
+            }
+
+            function initializeGame() {
+                // S'assurer que le meilleur score est chargé avant le démarrage
+                const savedHighscore = localStorage.getItem("guessTheFlagHighScoreContreLaMontre");
+                if (savedHighscore) {
+                    highScore = parseInt(savedHighscore, 10);
+                }
+                
+                updateScoreDisplay();
+                newQuestion();
+            }
+            
+            window.onload = initializeGame;
+        </script>
+    </body>
+</html>

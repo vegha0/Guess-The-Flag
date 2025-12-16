@@ -6,9 +6,200 @@
         <title>Guess The Flag</title>
     </head>
     <body>
-        <img src="public/image/globe.png" width="50" height="50"/>
+        <img src="public/image/globe.png" width="60" height="50"/>
         <div class="container">
             <a class="bouton_retour" href="accueil.html">Retouner à l'accueil</a>
         </div>
+        <div id="rules">
+            <h2>Mode Quiz</h2>
+            <p>Dans ce mode, vous serez mis au défi de deviner les drapeaux de différents pays. Pour chaque question, un drapeau sera affiché et vous devrez sélectionner le pays correspondant parmi plusieurs options. Testez vos connaissances géographiques et essayez d'obtenir le meilleur score possible!</p>
+            
+        </div>
+        <div id="flag-grid"></div>
+                <div id="score-container">
+            <p id="current-score">Score Actuel: 0</p>
+            <p id="high-score">Meilleur Score: 0</p>
+        </div>
+        <p id="timer-display">Temps restant: 03:00</p>
+        <script>
+        const countryCodes = [
+            "af","ag","al","dz","ad","ao","ar","am","au","at",
+            "az","bs","bh","bd","bb","by","be","bz","bj","bt",
+            "bo","ba","bw","br","bn","bg","bf","bi","cv","kh",
+            "cm","ca","cf","td","cl","cn","co","km","cd","cg",
+            "cr","hr","cu","cy","cz","dk","dj","dm","do","ec",
+            "eg","sv","gq","er","ee","sz","et","fj","fi","fr",
+            "ga","gm","ge","de","gh","gr","gd","gt","gn","gw",
+            "gy","ht","hn","hu","is","in","id","ir","iq","ie",
+            "il","it","jm","jp","jo","kz","ke","ki","kw","kg",
+            "la","lv","lb","ls","lr","ly","lt","lu","mg","mw",
+            "my","mv","ml","mt","mh","mr","mu","mx","fm","md",
+            "mc","mn","me","ma","mz","mm","na","nr","np","nl",
+            "nz","ni","ne","ng","no","om","pk","pw","pa","pg",
+            "py","pe","ph","pl","pt","qa","ro","ru","rw","kn",
+            "lc","vc","ws","sm","st","sa","sn","rs","sc","sl",
+            "sg","sk","si","sb","so","za","kr","es","lk","sd",
+            "sr","se","ch","sy","tw","tj","tz","th","tl","tg",
+            "to","tt","tn","tr","tm","tv","ug","ua","ae","gb",
+            "us","uy","uz","vu","va","ve","vn","ye","zm","zw"
+        ];
+        const flagGrid = document.getElementById("flag-grid");
+        const currentScoreDisplay = document.getElementById("current-score");
+        const highScoreDisplay = document.getElementById("high-score");
+        const timerDisplay = document.getElementById("timer-display");
+
+        let currentScore = 0;
+        let highScore = 0;
+        let currentCountry="";
+        let timeStart = 0; 
+        let totalTime = 180;
+        let gameTimer = null;
+        let isGameOver = false;
+
+        function updateScoreDisplay(){
+            currentScoreDisplay.textContent = `Score Actuel: ${currentScore}`;
+            if (currentScore > highScore) {
+                highScore = currentScore;
+
+                localStorage.setItem("guessTheFlagHighScore", highScore);
+            }
+            highScoreDisplay.textContent = `Meilleur Score: ${highScore}`;
+        }
+        function countryNameFromCode(code) {
+            return new Intl.DisplayNames(['fr'], {type: 'region'}).of(code.toUpperCase());
+        }
+
+        function saveFinalScoreToHistory(score) {
+            const savedHighScore = localStorage.getItem("guessTheFlagHighScore");
+            if (savedHighScore || score > parseInt(savedHighScore, 10)) {
+                localStorage.setItem("guessTheFlagHighScore", score);
+                highScore = score;
+            }
+            let history = JSON.parse(localStorage.getItem("guessTheFlagScoreHistory")) || [];
+            history.push({score: score});
+            history.sort((a, b) => b.score - a.score);
+            history = history.slice(0, 10); // garde seulement les 10 meilleurs scores
+            localStorage.setItem("guessTheFlagScoreHistory", JSON.stringify(history));
+            updateScoreDisplay();
+        }
+
+        function calculatePoints(timeTaken) {
+            const basePoints = 100;
+            const maxTimeBonus = 3;
+
+            if (timeTaken < maxTimeBonus) {
+                const bonus = Math.round(basePoints * (1 - timeTaken / maxTimeBonus));
+                return basePoints + bonus;
+            } else {
+                return basePoints;
+            }
+        }
+
+        function handleAnswer(selectedCode) {
+            if (isGameOver) return;
+
+            const timeTaken = (Date.now() - timeStart) / 1000;
+
+            const buttons = Array.from(flagGrid.getElementsByTagName('button'));
+            buttons.forEach (btn => {
+                btn.disabled = true;
+
+                const code = btn.dataset.code;
+                if (code === currentCountry) {
+                    btn.classList.add('correct');
+                }
+                if (code === selectedCode && code !== currentCountry) {
+                    btn.classList.add('incorrect');
+                }
+            });
+            if (selectedCode === currentCountry) {
+                const points = calculatePoints(timeTaken);
+                currentScore += points;
+            }else{
+
+            }
+                
+            updateScoreDisplay();
+
+            setTimeout(newQuestion,1500 );
+            }
+
+        function newQuestion() {
+            if (isGameOver) return;
+            
+            flagGrid.innerHTML = "";
+            timeStart = Date.now();
+
+            currentCountry = countryCodes[Math.floor(Math.random() * countryCodes.length)];
+
+            const options =[currentCountry];
+            while (options.length < 4) {
+                const randomCode = countryCodes[Math.floor(Math.random() * countryCodes.length)];
+                if (!options.includes(randomCode)) {
+                    options.push(randomCode);
+                }
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            const quizContainer = document.createElement("div");
+            quizContainer.id = "quiz-content";
+            flagGrid.appendChild(quizContainer);
+
+            const img = document.createElement("img");
+            img.src = `https://flagcdn.com/w320/${currentCountry}.png`;
+            img.alt = "Drapeau";
+            img.style.width = "200px";
+            img.classList.add("flag");
+            quizContainer.appendChild(img);
+
+            const optionsContainer = document.createElement("div");
+            optionsContainer.id = "options-container";
+            quizContainer.appendChild(optionsContainer);
+
+            options.forEach(code => {
+                const button = document.createElement("button");
+                button.textContent = countryNameFromCode(code);
+                button.style.margin = "5px";
+                button.dataset.code = code;
+                button.onclick = () => { handleAnswer(code); };
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function startTimer() {
+            gameTimer = setInterval(() => {
+                totalTime--;
+                const minutes = Math.floor(totalTime / 60);
+                const seconds = totalTime % 60;
+
+                const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                timerDisplay.textContent = `Temps restant: ${display}`;
+
+                if (totalTime <= 0) {
+                    clearInterval(gameTimer);
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            isGameOver = true;
+            flagGrid.innerHTML = "<h2>Jeu Terminé!</h2>";
+            saveFinalScoreToHistory(currentScore);
+        }
+
+        function initializeGame() {
+            const savedScore = localStorage.getItem("guessTheFlagHighScore");
+            if (savedScore) {
+                highScore = parseInt(savedScore, 10);
+            }
+            timerDisplay.textContent = `Temps restant: 03:00`;
+            
+            updateScoreDisplay();
+            startTimer();
+            newQuestion();
+        }
+        window.onload = initializeGame;
+        </script>
     </body>
 </html>
